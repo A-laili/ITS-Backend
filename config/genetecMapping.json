@@ -1,0 +1,28 @@
+{
+    "fields": {
+        "firstName": "FirstName",
+        "lastName": "LastName",
+        "email": "Email",
+        "phoneNumber": "MobilePhoneNumber",
+        "notes": "Info",
+        "employmentStatus": {
+            "field": "Status",
+            "values": {
+                "0": "active",
+                "1": "inactive",
+                "2": "suspended"
+            }
+        },
+        "externalId": "Guid",
+        "metadata": {
+            "activationDate": "ActivationDate",
+            "expirationDate": "ExpirationDate",
+            "canEscort": "CanEscort",
+            "mandatoryEscort": "MandatoryEscort",
+            "hasPicture": "Picture"
+        }
+    },
+    "defaults": {
+        "employmentStatus": "active"
+    }
+}

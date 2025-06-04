@@ -1,0 +1,4 @@
+{"topic": "hazen/vistapro/*/status",
+"schema":{
+    "status": "<unknown/warmup/normal/fault/connectionLost/deviceUp>"}
+}

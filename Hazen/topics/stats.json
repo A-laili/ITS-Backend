@@ -1,0 +1,21 @@
+{"topic": "hazen/vistapro/*/stats",
+"schema":{
+    "sitename": "<siteName>",
+    "StartTimestampUnixMs": "<periodStartTimestampUnixMs>",
+    "EndTimestampUnixMs": "<periodEndTimestampUnixMs>",
+    "counts": {
+    "Negative": "<vehicleType.count>",
+    "Bus": "<vehicleType.count>",
+    "CamperVan": "<vehicleType.count>",
+    "Jeep": "<vehicleType.count>",
+    "Pickup_Mintruck": "<vehicleType.count>",
+    "Sedan": "<vehicleType.count>",
+    "Sport": "<vehicleType.count>",
+    "Hatchback": "<vehicleType.count>",
+    "Truck": "<vehicleType.count>",
+    "Unorthodox": "<vehicleType.count>",
+    "Van": "<vehicleType.count>",
+    "Bike": "<vehicleType.count>"
+    }
+    }
+}

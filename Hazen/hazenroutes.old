@@ -1,0 +1,178 @@
+//mehdi code
+const { Op } = require('sequelize');
+const express = require('express');
+const router = express.Router();
+const CropImage = require('./hazen_models/CropImage');
+const FullImage = require('./hazen_models/FullImage'); // Add this line
+const fs = require('fs').promises;
+const path = require('path');
+const Sys = require('../models/sys');  // Changed from '../../models/sys' to '../models/sys'
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+// Helper function to mount network share
+async function mountNetworkShare(filePath) {
+    try {
+        if (filePath.startsWith('\\\\') || filePath.startsWith('//')) {
+            const userSetting = await Sys.findOne({ where: { key: 'videopathuser' } });
+            const pwSetting = await Sys.findOne({ where: { key: 'videopathpw' } });
+
+            if (!userSetting || !pwSetting) {
+                throw new Error('Network credentials not found in system settings');
+            }
+
+            const sharePath = path.dirname(filePath);
+            await execPromise(`net use "${sharePath}" /user:${userSetting.value} ${pwSetting.value}`);
+            console.log(`Network path mounted: ${sharePath}`);
+        }
+    } catch (error) {
+        console.error('Error mounting network share:', error);
+        throw error;
+    }
+}
+
+// Get crop image by filename
+router.get('/cropimage/file/:fileName', async (req, res) => {
+    try {
+        const image = await CropImage.findOne({
+            where: {
+                fileName: {
+                    [Op.like]: `%${req.params.fileName}%`  // Use LIKE for partial match
+                }
+            },
+            order: [['createdAt', 'DESC']]  // Get the most recent matching record
+        });
+
+        if (!image) {
+            return res.status(404).json({
+                success: false,
+                message: 'Image not found in database',
+                fileExists: false
+            });
+        }
+
+        try {
+            // Check if file exists before attempting to mount and read
+            const fileExists = await fs.access(image.image)
+                .then(() => true)
+                .catch(() => false);
+
+            if (!fileExists) {
+                return res.status(202).json({  // 202 Accepted means request is valid but processing
+                    success: false,
+                    message: 'Image file not ready yet',
+                    fileExists: false
+                });
+            }
+
+            // Mount network share if needed
+            await mountNetworkShare(image.image);  // Use image column for file path
+
+            // Read the actual file from the network share
+            const imageBuffer = await fs.readFile(image.image);  // Use image column for file path
+
+            // Determine content type based on file extension
+            const ext = path.extname(image.image).toLowerCase();  // Use image column for extension
+            const contentType = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif'
+            }[ext] || 'application/octet-stream';
+
+            // Set response headers
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Length', imageBuffer.length);
+
+            // Send the actual image file
+            res.send(imageBuffer);
+
+        } catch (fileError) {
+            console.error('File read error:', fileError);
+            return res.status(404).json({
+                success: false,
+                message: 'Image file not found or inaccessible on server',
+                path: image.image,  // Use image column for path in error message
+                error: fileError.message
+            });
+        }
+    } catch (error) {
+        console.error('Database error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving image',
+            error: error.message
+        });
+    }
+});
+
+// Get full image by filename
+router.get('/fullimage/file/:fileName', async (req, res) => {
+    try {
+        const image = await FullImage.findOne({
+            where: {
+                fileName: {
+                    [Op.like]: `%${req.params.fileName}%`
+                }
+            },
+            order: [['createdAt', 'DESC']]
+        });
+
+        if (!image) {
+            return res.status(404).json({
+                success: false,
+                message: 'Image not found in database',
+                fileExists: false
+            });
+        }
+
+        try {
+            const fileExists = await fs.access(image.image)
+                .then(() => true)
+                .catch(() => false);
+
+            if (!fileExists) {
+                return res.status(202).json({
+                    success: false,
+                    message: 'Image file not ready yet',
+                    fileExists: false
+                });
+            }
+
+            await mountNetworkShare(image.image);
+
+            const imageBuffer = await fs.readFile(image.image);
+
+            const ext = path.extname(image.image).toLowerCase();
+            const contentType = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif'
+            }[ext] || 'application/octet-stream';
+
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Length', imageBuffer.length);
+            res.send(imageBuffer);
+
+        } catch (fileError) {
+            console.error('File read error:', fileError);
+            return res.status(404).json({
+                success: false,
+                message: 'Image file not found or inaccessible on server',
+                path: image.image,
+                error: fileError.message
+            });
+        }
+    } catch (error) {
+        console.error('Database error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving image',
+            error: error.message
+        });
+    }
+});
+
+module.exports = router;

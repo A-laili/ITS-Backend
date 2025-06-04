@@ -1,0 +1,47 @@
+{
+  "development": {
+    "username": "oss",
+    "password": "Oss2019.",
+    "database": "OSS_ITSdev",
+    "host": "host.omnisys.dev",
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": true,
+        "enableArithAbort": true,
+        "trustServerCertificate": true,
+        "instanceName": "sqlexpress"
+      }
+    }
+  },
+  "test": {
+    "username": "oss",
+    "password": "Oss2019.",
+    "database": "OSS_ITStest",
+    "host": "127.0.0.1",
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": true,
+        "enableArithAbort": true,
+        "trustServerCertificate": true,
+        "instanceName": "sqlexpress"
+      }
+    }
+  },
+  "production": {
+    "username": "oss",
+    "password": "Oss2019.",
+    "database": "OSS_ITSprod",
+    "host": "127.0.0.1",
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": true,
+        "enableArithAbort": true,
+        "trustServerCertificate": true,
+        "instanceName": "sqlexpress"
+      }
+    }
+  }
+}

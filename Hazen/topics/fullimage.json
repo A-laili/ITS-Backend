@@ -1,0 +1,7 @@
+{"topic": "hazen/vistapro/*/fullimage",
+"schema":{
+    "fileName": "<fullpicfilename>",
+    "format": "<fullpicfilename.format>",
+    "image": "<base64EncodedImage>"
+    }
+}

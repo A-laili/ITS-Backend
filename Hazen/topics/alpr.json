@@ -1,0 +1,46 @@
+{
+    "topic": "hazen/vistapro/*/alpr",
+    "schema": {
+        "direction": "receding",
+        "eventId": "1741488227423_736_2T51144_alpr",
+        "fullImageFileName": "1741488227423_736_2T51144_alpr.jpg",
+        "lpData": {
+            "country": "SA",
+            "countryConfidence": 0.9,
+            "lpCropImage": "N/A",
+            "lpOcr": "2T51144",
+            "lpOcrConfidence": 0.3489920496940613,
+            "plateCategory": "private",
+            "plateCategoryConf": 0.7
+        },
+        "lpVisible": true,
+        "sitename": "OmniSec01_test",
+        "speedmph": 0,
+        "timestampUnixMs": 1741488227423,
+        "vehicleData": {
+            "color": "blue",
+            "colorConfidence": 0.47999998927116394,
+            "lpBb": {
+                "BbConf": 0,
+                "h": 1,
+                "w": 1,
+                "x": -1,
+                "y": -1
+            },
+            "make": "dodge",
+            "makeConfidence": 0.05999999865889549,
+            "model": "sprinter",
+            "modelConfidence": 0.05999999865889549,
+            "vechicleBb": {
+                "BbConf": 0.9469285011291504,
+                "h": 0.36966970562934875,
+                "w": 0.15300709009170532,
+                "x": 0.3041301965713501,
+                "y": 0.38652142882347107
+            },
+            "vehicleImageFileName": "1741488227423_736_2T51144_alpr_vehicle_crop.jpg",
+            "vehicleType": "Sedan",
+            "vehicleTypeConf": 0.999998927116394
+        }
+    }
+}

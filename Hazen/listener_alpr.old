@@ -1,0 +1,155 @@
+require('dotenv').config();
+const mqtt = require('mqtt');
+const fs = require('fs');
+const path = require('path');
+const IntegrationSettings = require('../models/IntegrationSettings');
+const Alpr = require('./hazen_models/Alpr'); // Updated: use Alpr model
+const eventBroker = require('../services/eventBroker'); // Added: require eventBroker
+
+// New helper function to fetch MQTT settings from the database
+async function getMQTTSettings() {
+    try {
+        const setting = await IntegrationSettings.findOne({ where: { type: 'MQTT', isEnabled: true } });
+        return setting;
+    } catch (err) {
+        console.error('Error fetching MQTT integration settings from DB:', err);
+        throw err;
+    }
+}
+
+async function startListener() {
+    let mqttSetting;
+    try {
+        mqttSetting = await getMQTTSettings();
+        if (!mqttSetting) {
+            console.error('MQTT integration settings not found.');
+            return;
+        }
+        // mqttSetting.config is already parsed by the model getter
+    } catch (err) {
+        console.error('Error fetching MQTT integration settings:', err);
+        return;
+    }
+
+    const config = mqttSetting.config; // use the config from DB directly
+    const brokerUrl = config["Brocker URL"];
+    const options = {
+        username: config["user"],
+        password: config["password"]
+    };
+
+    // Connect to the MQTT broker
+    const client = mqtt.connect(`mqtt://${brokerUrl}`, options);
+
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        // Read only the status topic configuration from status.json
+        const statusFile = path.join(__dirname, 'topics', 'alpr.json');
+        fs.readFile(statusFile, 'utf8', (err, data) => {
+            if (err) {
+                console.error(`Error reading status file ${statusFile}:`, err);
+                return;
+            }
+            try {
+                const json = JSON.parse(data);
+                const topic = json.topic;
+                if (topic) {
+                    client.subscribe(topic, (err) => {
+                        if (err) {
+                            console.error(`Failed to subscribe to topic ${topic}: ${err}`);
+                        } else {
+                            console.log(`Subscribed to topic: ${topic}`);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error(`Error parsing JSON in file ${statusFile}:`, e);
+            }
+        });
+    });
+
+    client.on('message', (topic, message) => {
+        console.log(`[ALPR] Received message on ${topic}`);
+        try {
+            const payload = JSON.parse(message.toString());
+            console.log('[ALPR] Parsed payload:', {
+                device: payload.device,
+                lpOcr: payload.lpData?.lpOcr,
+                timestamp: payload.timestampUnixMs
+            });
+
+            // Extract device from topic assuming format "hazen/vistapro/<device>/alpr"
+            const tokens = topic.split('/');
+            const device = tokens[2] || 'unknown';
+
+            // Map payload into Alpr model fields
+            const alprData = {
+                device: device,
+                direction: payload.direction,
+                eventId: payload.eventId,
+                fullImageFileName: payload.fullImageFileName,
+                lpVisible: payload.lpVisible,
+                sitename: payload.sitename,
+                speedmph: payload.speedmph,
+                timestampUnixMs: payload.timestampUnixMs,
+                lp_country: payload.lpData && payload.lpData.country,
+                lp_countryConfidence: payload.lpData && payload.lpData.countryConfidence,
+                lp_lpCropImage: payload.lpData && payload.lpData.lpCropImage,
+                lp_lpOcr: payload.lpData && payload.lpData.lpOcr,
+                lp_lpOcrConfidence: payload.lpData && payload.lpData.lpOcrConfidence,
+                lp_plateCategory: payload.lpData && payload.lpData.plateCategory,
+                lp_plateCategoryConf: payload.lpData && payload.lpData.plateCategoryConf,
+                vehicle_color: payload.vehicleData && payload.vehicleData.color,
+                vehicle_colorConfidence: payload.vehicleData && payload.vehicleData.colorConfidence,
+                vehicle_lpBb_BbConf: payload.vehicleData && payload.vehicleData.lpBb && payload.vehicleData.lpBb.BbConf,
+                vehicle_lpBb_h: payload.vehicleData && payload.vehicleData.lpBb && payload.vehicleData.lpBb.h,
+                vehicle_lpBb_w: payload.vehicleData && payload.vehicleData.lpBb && payload.vehicleData.lpBb.w,
+                vehicle_lpBb_x: payload.vehicleData && payload.vehicleData.lpBb && payload.vehicleData.lpBb.x,
+                vehicle_lpBb_y: payload.vehicleData && payload.vehicleData.lpBb && payload.vehicleData.lpBb.y,
+                vehicle_make: payload.vehicleData && payload.vehicleData.make,
+                vehicle_makeConfidence: payload.vehicleData && payload.vehicleData.makeConfidence,
+                vehicle_model: payload.vehicleData && payload.vehicleData.model,
+                vehicle_modelConfidence: payload.vehicleData && payload.vehicleData.modelConfidence,
+                vehicle_vechicleBb_BbConf: payload.vehicleData && payload.vehicleData.vechicleBb && payload.vehicleData.vechicleBb.BbConf,
+                vehicle_vechicleBb_h: payload.vehicleData && payload.vehicleData.vechicleBb && payload.vehicleData.vechicleBb.h,
+                vehicle_vechicleBb_w: payload.vehicleData && payload.vehicleData.vechicleBb && payload.vehicleData.vechicleBb.w,
+                vehicle_vechicleBb_x: payload.vehicleData && payload.vehicleData.vechicleBb && payload.vehicleData.vechicleBb.x,
+                vehicle_vechicleBb_y: payload.vehicleData && payload.vehicleData.vechicleBb && payload.vehicleData.vechicleBb.y,
+                vehicle_vehicleImageFileName: payload.vehicleData && payload.vehicleData.vehicleImageFileName,
+                vehicle_vehicleType: payload.vehicleData && payload.vehicleData.vehicleType,
+                vehicle_vehicleTypeConf: payload.vehicleData && payload.vehicleData.vehicleTypeConf
+            };
+
+            // Prepare event data for broker
+            const eventData = {
+                plateNumber: payload.lpData?.lpOcr || 'Unknown',
+                confidence: payload.lpData?.lpOcrConfidence || 0,
+                timestamp: new Date(payload.timestampUnixMs).toISOString(),
+                imageUrl: payload.vehicleData.vehicleImageFileName,
+                device: device,
+                speed: payload.speedmph
+            };
+
+            console.log('[ALPR] Publishing to event broker:', eventData);
+
+            // Publish to event broker
+            eventBroker.publish('ALPR', eventData);
+            console.log('[ALPR] Published to event broker');
+
+            // Save using Alpr model
+            Alpr.create(alprData)
+                .then(result => console.log('[ALPR] Saved to database'))
+                .catch(err => console.error('[ALPR] Error saving to database:', err));
+        } catch (e) {
+            console.error('[ALPR] Error processing message:', e);
+            console.error('[ALPR] Raw message:', message.toString());
+            console.error('[ALPR] Stack:', e.stack);
+        }
+    });
+
+    client.on('error', (err) => {
+        console.error('MQTT client error:', err);
+    });
+}
+
+startListener();

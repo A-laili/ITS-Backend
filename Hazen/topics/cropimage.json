@@ -1,0 +1,7 @@
+{"topic": "hazen/vistapro/*/cropimage",
+"schema":{
+    "fileName": "<lpCropImage",
+    "format": "<lpCropImage.format>",
+    "image": "<base64EncodedImage>"
+    }
+}
